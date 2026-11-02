@@ -3,6 +3,7 @@ use crate::jobs::{Job, Jobs};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
+use std::os::windows::fs::MetadataExt;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -119,7 +120,7 @@ pub fn open_path(path: String) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     } else if p.is_file() {
         std::process::Command::new("cmd")
-            .args(["/C", "start", "", &path])
+            .args(["/C", "start", "", path.as_str()])
             .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
             .spawn()
             .map_err(|e| e.to_string())?;

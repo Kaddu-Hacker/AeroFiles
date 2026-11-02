@@ -34,7 +34,20 @@ jobs:
         run: npx tauri icon app-icon.png
 
       - name: Build (release)
-        run: npx tauri build
+        shell: pwsh
+        run: |
+          npx tauri build *> build.log
+          $code = $LASTEXITCODE
+          Get-Content build.log -Tail 60
+          exit $code
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
 
       - name: Collect artifacts
         shell: pwsh
@@ -46,7 +59,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: prism-files-windows
+          name: AeroFiles-windows
           path: artifacts/*
 
       - name: Attach to GitHub Release
