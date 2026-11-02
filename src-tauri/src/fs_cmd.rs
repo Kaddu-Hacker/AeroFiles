@@ -51,7 +51,7 @@ fn canon(raw: &str) -> String {
     let t = raw.trim();
     let b = t.as_bytes();
     if b.len() == 2 && b[1] == b':' && b[0].is_ascii_alphabetic() {
-        format!("{b}\\")
+        format!("{t}\\")
     } else {
         t.to_string()
     }
