@@ -256,9 +256,22 @@ pub fn preview_file(path: String) -> Result<Preview, String> {
         else { "none" };
     let (text, truncated) = if kind == "text" {
         let cap = 96 * 1024;
-        let data = fs::read(&p).map_err(|e| e.to_string())?;
-        let trunc = data.len() > cap;
-        (String::from_utf8_lossy(&data[..cap.min(data.len())]).to_string(), trunc)
+        use std::io::Read;
+        let mut f = fs::File::open(&p).map_err(|e| e.to_string())?;
+        let mut buf = vec![0u8; cap + 1];
+        let mut filled = 0usize;
+        loop {
+            let n = f.read(&mut buf[filled..]).map_err(|e| e.to_string())?;
+            if n == 0 {
+                break;
+            }
+            filled += n;
+            if filled > cap {
+                break;
+            }
+        }
+        let trunc = filled > cap;
+        (String::from_utf8_lossy(&buf[..filled.min(cap)]).to_string(), trunc)
     } else { (String::new(), false) };
     Ok(Preview { kind: kind.into(), text: (!text.is_empty()).then_some(text), size, truncated })
 }
@@ -334,4 +347,35 @@ pub fn copy_move(mode: String, srcs: Vec<String>, dst: String, jobs: tauri::Stat
         }
     });
     Ok(id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unique_target_suffixes() {
+        let dir = std::env::temp_dir().join(format!("aero-test-ut-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("note.txt"), b"x").unwrap();
+        let t1 = unique_target(&dir.join("note.txt"));
+        assert_eq!(t1.file_name().unwrap().to_string_lossy(), "note (2).txt");
+        fs::write(&t1, b"x").unwrap();
+        let t2 = unique_target(&dir.join("note.txt"));
+        assert_eq!(t2.file_name().unwrap().to_string_lossy(), "note (3).txt");
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn entry_of_parses_metadata() {
+        let dir = std::env::temp_dir().join(format!("aero-test-eo-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("hello.txt"), b"hello").unwrap();
+        let e = entry_of(&dir.join("hello.txt")).unwrap();
+        assert_eq!(e.name, "hello.txt");
+        assert_eq!(e.ext, ".txt");
+        assert!(!e.is_dir);
+        assert_eq!(e.size, 5);
+        fs::remove_dir_all(&dir).unwrap();
+    }
 }

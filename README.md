@@ -78,3 +78,17 @@ python scripts/serve_dev.py 8900
 ## ⚖️ License
 
 MIT — see [LICENSE](LICENSE). Built by **Kaddu@Anshu**.
+
+## 🔒 Operations & trust model
+
+- **No network surface**: the shipped app has no HTTP API or listeners; UI⇄core
+  traffic rides Tauri IPC inside the app's own webview. See [SECURITY.md](SECURITY.md)
+  for the threat model and audit dispositions.
+- **Memory model**: directory listings are single `read_dir` passes; transfers
+  and zip creation stream in chunks; text previews are hard-capped at 96 KB
+  (bounded read).
+- **Persistence**: none by design — favorites/recents/theme live in webview
+  localStorage; no background services, no telemetry, nothing phones home.
+- **Concurrency**: transfers run on background worker threads with job polling;
+  UI stays responsive during long operations.
+- **Tests**: `cargo test` runs in CI on every build.

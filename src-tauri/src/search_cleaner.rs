@@ -276,3 +276,68 @@ pub fn find_orphans() -> Vec<Orphan> {
     }
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mk(root: &Path, rel: &str, bytes: &[u8]) {
+        let p = root.join(rel);
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(p, bytes).unwrap();
+    }
+
+    #[test]
+    fn search_applies_ext_and_size_filters() {
+        let root = std::env::temp_dir().join(format!("aero-test-sf-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        mk(&root, "report.pdf", b"12345678");
+        mk(&root, "tiny.PDF", b"12");
+        mk(&root, "notes.txt", b"abcdefgh");
+        mk(&root, "deep/inner/data.csv", b"xyz");
+        let f = SearchFilters {
+            root: root.to_string_lossy().to_string(),
+            q: String::new(),
+            exts: vec![".pdf".into()],
+            min_size: Some(5),
+            max_size: None,
+            newer_than_days: None,
+            older_than_days: None,
+            kind: Some("files".into()),
+            cap: Some(100),
+        };
+        let r = search_files(f);
+        let names: Vec<&str> = r.results.iter().map(|h| h.name.as_str()).collect();
+        assert!(names.contains(&"report.pdf"));
+        assert!(names.contains(&"tiny.PDF"));   // extension match is case-insensitive
+        assert!(!names.contains(&"notes.txt")); // ext filter
+        assert!(!names.contains(&"data.csv"));  // 3 bytes < min_size
+        assert!(!r.results.iter().any(|h| h.is_dir)); // kind=files
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn search_name_query_matches_case_insensitively() {
+        let root = std::env::temp_dir().join(format!("aero-test-sq-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        mk(&root, "SummerPhoto.JPG", b"x");
+        mk(&root, "winter.jpg", b"x");
+        let f = SearchFilters {
+            root: root.to_string_lossy().to_string(),
+            q: "summer".into(),
+            exts: vec![],
+            min_size: None, max_size: None,
+            newer_than_days: None, older_than_days: None,
+            kind: Some("files".into()), cap: Some(100),
+        };
+        let r = search_files(f);
+        assert_eq!(r.results.len(), 1);
+        assert_eq!(r.results[0].name, "SummerPhoto.JPG");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn list_installed_finds_registry_entries() {
+        assert!(!list_installed().is_empty());
+    }
+}
