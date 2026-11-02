@@ -39,11 +39,15 @@ jobs:
           cargo test --manifest-path src-tauri/Cargo.toml -vv *> test.log
           $code = $LASTEXITCODE
           if ($code -ne 0) {
-            Get-Content test.log | Select-String -Pattern "panicked at|assertion|error\[E|^error|failures:|Caused by|--- stderr" |
-              ForEach-Object { "::error::$($_.Line)" }
-            Get-Content test.log -Tail 45 | ForEach-Object { "::error::TAIL> $_" }
+            $m = Select-String -Path test.log -Pattern "error: failed to run custom build command|panicked at|assertion failed" | Select-Object -First 3
+            foreach ($hit in $m) {
+              "::error::HIT> $($hit.Line)"
+              if ($hit.Context -and $hit.Context.PostContext) {
+                $hit.Context.PostContext | Select-Object -First 40 | ForEach-Object { "::error::CTX> $_" }
+              }
+            }
           }
-          Get-Content test.log -Tail 40
+          Get-Content test.log -Tail 25
           exit $code
 
       - name: Build (release)
