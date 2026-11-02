@@ -38,7 +38,16 @@ jobs:
         run: |
           npx tauri build *> build.log
           $code = $LASTEXITCODE
-          Get-Content build.log -Tail 60
+          if ($code -ne 0) {
+            $m = Select-String -Path build.log -Pattern "error\[E|^error:|panicked at|failed to run custom build" -Context 0,12 | Select-Object -First 4
+            foreach ($hit in $m) {
+              "::error::HIT> $($hit.Line)"
+              if ($hit.Context -and $hit.Context.PostContext) {
+                $hit.Context.PostContext | Select-Object -First 12 | ForEach-Object { "::error::CTX> $_" }
+              }
+            }
+          }
+          Get-Content build.log -Tail 40
           exit $code
 
       - name: Run tests
