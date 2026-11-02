@@ -33,29 +33,33 @@ jobs:
       - name: Generate platform icons
         run: npx tauri icon app-icon.png
 
-      - name: Run tests
-        shell: pwsh
-        run: |
-          cargo test --release --manifest-path src-tauri/Cargo.toml -vv *> test.log
-          $code = $LASTEXITCODE
-          if ($code -ne 0) {
-            $m = Select-String -Path test.log -Pattern "error: failed to run custom build command|panicked at|assertion failed" -Context 0,45 | Select-Object -First 3
-            foreach ($hit in $m) {
-              "::error::HIT> $($hit.Line)"
-              if ($hit.Context -and $hit.Context.PostContext) {
-                $hit.Context.PostContext | Select-Object -First 40 | ForEach-Object { "::error::CTX> $_" }
-              }
-            }
-          }
-          Get-Content test.log -Tail 25
-          exit $code
-
       - name: Build (release)
         shell: pwsh
         run: |
           npx tauri build *> build.log
           $code = $LASTEXITCODE
           Get-Content build.log -Tail 60
+          exit $code
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          # build.rs has already run successfully inside `tauri build` above and is
+          # cached — this step reuses it instead of re-executing it (the build script
+          # crashes under plain `cargo test` on windows runners, see SECURITY history).
+          cargo test --release --manifest-path src-tauri/Cargo.toml *> test.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            Select-String -Path test.log -Pattern "exit code" | ForEach-Object { "::error::EXIT> $_" }
+            $m = Select-String -Path test.log -Pattern "panicked at|assertion failed|failures:" -Context 0,20 | Select-Object -First 3
+            foreach ($hit in $m) {
+              "::error::HIT> $($hit.Line)"
+              if ($hit.Context -and $hit.Context.PostContext) {
+                $hit.Context.PostContext | Select-Object -First 20 | ForEach-Object { "::error::CTX> $_" }
+              }
+            }
+          }
+          Get-Content test.log -Tail 25
           exit $code
 
       - name: Upload logs on failure
