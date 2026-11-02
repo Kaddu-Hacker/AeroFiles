@@ -4,7 +4,6 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 use std::os::windows::fs::MetadataExt;
-use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -43,6 +42,19 @@ pub struct Preview {
     pub text: Option<String>,
     pub size: u64,
     pub truncated: bool,
+}
+
+/// Canonicalize a user-supplied path: "C:" -> "C:\" (a bare drive letter is a
+/// drive-relative path that resolves against the per-drive current directory,
+/// not the root — which made C: show the wrong folder).
+fn canon(raw: &str) -> String {
+    let t = raw.trim();
+    let b = t.as_bytes();
+    if b.len() == 2 && b[1] == b':' && b[0].is_ascii_alphabetic() {
+        format!("{b}\\")
+    } else {
+        t.to_string()
+    }
 }
 
 fn entry_of(p: &Path) -> Option<Entry> {
@@ -97,7 +109,7 @@ pub fn list_dir(path: String) -> Result<Vec<Entry>, String> {
             })
             .collect());
     }
-    let root = PathBuf::from(&path);
+    let root = PathBuf::from(canon(&path));
     if !root.is_dir() {
         return Err("path is not a directory".into());
     }
@@ -146,22 +158,9 @@ pub fn home_dirs() -> Vec<(String, String)> {
 
 #[tauri::command]
 pub fn open_path(path: String) -> Result<(), String> {
-    let p = PathBuf::from(&path);
-    if p.is_dir() {
-        std::process::Command::new("explorer")
-            .arg(&p)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    } else if p.is_file() {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", path.as_str()])
-            .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    } else {
-        return Err("not found".into());
-    }
-    Ok(())
+    // ShellExecuteW via the `open` crate — no cmd.exe re-parsing, so paths
+    // containing `&` (C:\Users\Keshaw&Tanishi\…) open correctly.
+    open::that(canon(&path)).map_err(|e| e.to_string())
 }
 
 fn unique_target(dst: &Path) -> PathBuf {
@@ -182,14 +181,14 @@ fn unique_target(dst: &Path) -> PathBuf {
 
 #[tauri::command]
 pub fn mkdir(parent: String, name: String) -> Result<String, String> {
-    let target = unique_target(&Path::new(&parent).join(name));
+    let target = unique_target(&Path::new(&canon(&parent)).join(name));
     fs::create_dir(&target).map_err(|e| e.to_string())?;
     Ok(target.to_string_lossy().to_string())
 }
 
 #[tauri::command]
 pub fn new_file(parent: String, name: String) -> Result<String, String> {
-    let target = unique_target(&Path::new(&parent).join(name));
+    let target = unique_target(&Path::new(&canon(&parent)).join(name));
     fs::File::create(&target).map_err(|e| e.to_string())?;
     Ok(target.to_string_lossy().to_string())
 }
@@ -231,7 +230,7 @@ pub fn recycle_paths(paths: Vec<String>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn zip_folder(path: String) -> Result<String, String> {
-    let src = PathBuf::from(&path);
+    let src = PathBuf::from(canon(&path));
     if !src.exists() {
         return Err("not found".into());
     }
@@ -278,7 +277,7 @@ const TXT: &[&str] = &[".txt", ".md", ".log", ".json", ".py", ".js", ".ts", ".cs
 
 #[tauri::command]
 pub fn preview_file(path: String) -> Result<Preview, String> {
-    let p = PathBuf::from(&path);
+    let p = PathBuf::from(canon(&path));
     let md = fs::metadata(&p).map_err(|e| e.to_string())?;
     let size = md.len();
     let ext = p.extension().map(|e| format!(".{}", e.to_string_lossy().to_lowercase())).unwrap_or_default();
@@ -335,6 +334,7 @@ pub fn copy_move(mode: String, srcs: Vec<String>, dst: String, jobs: tauri::Stat
     if mode != "copy" && mode != "move" {
         return Err("bad mode".into());
     }
+    let dst = canon(&dst);
     let id = format!("{:08x}", std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().subsec_nanos() as u64
         ^ (srcs.len() as u64) << 32);
@@ -386,6 +386,16 @@ pub fn copy_move(mode: String, srcs: Vec<String>, dst: String, jobs: tauri::Stat
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn canon_normalizes_drive_paths() {
+        assert_eq!(canon("C:"), "C:\\");
+        assert_eq!(canon("c:"), "c:\\");
+        assert_eq!(canon(" C: "), "C:\\");
+        assert_eq!(canon("C:\\Users"), "C:\\Users");
+        assert_eq!(canon("E:\\projects\\AeroFiles"), "E:\\projects\\AeroFiles");
+        assert_eq!(canon("\\\\server\\share"), "\\\\server\\share");
+    }
 
     #[test]
     fn unique_target_suffixes() {
