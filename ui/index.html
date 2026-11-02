@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AeroFiles</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23181438'/%3E%3Cpath d='M10 22 16 10l6 12z' fill='%23ffffff' opacity='.9'/%3E%3Cpath d='M17 18h7M17.5 20.5h6' stroke='%237cc4ff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles/app.css?v=2">
+<script>
+  window.__errs = [];
+  window.addEventListener("error", (e) => window.__errs.push(e.message + " @ " + (e.filename || "?") + ":" + e.lineno + ":" + e.colno));
+  window.addEventListener("unhandledrejection", (e) => window.__errs.push("promise: " + (e.reason?.message || String(e.reason))));
+</script>
+</head>
+<body>
+
+<!-- animated glass backdrop -->
+<div id="bg" aria-hidden="true">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="grain"></div>
+</div>
+
+<div id="app">
+
+  <!-- custom titlebar -->
+  <header id="titlebar" data-tauri-drag-region>
+    <div class="tb-left">
+      <span class="logo">▲</span><span class="brand">Aero <b>Files</b></span>
+    </div>
+    <nav id="nav">
+      <button class="nav-btn active" data-view="explorer" title="Files">
+        <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Files</button>
+      <button class="nav-btn" data-view="search" title="Global search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search</button>
+      <button class="nav-btn" data-view="cleaner" title="Cleaner">
+        <svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2m-8 0 1 12h8l1-12"/></svg>Cleaner</button>
+      <button class="nav-btn" data-view="settings" title="Settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.6 5.6l1.9 1.9M16.5 16.5l1.9 1.9M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9"/></svg>Settings</button>
+    </nav>
+    <div class="tb-right">
+      <button id="win-min" class="wbtn" title="Minimize">─</button>
+      <button id="win-max" class="wbtn" title="Maximize">▢</button>
+      <button id="win-close" class="wbtn close" title="Close">✕</button>
+    </div>
+  </header>
+
+  <!-- views -->
+  <main id="views">
+    <section id="view-explorer" class="view active"></section>
+    <section id="view-search" class="view"></section>
+    <section id="view-cleaner" class="view"></section>
+    <section id="view-settings" class="view"></section>
+  </main>
+
+  <footer id="statusbar">
+    <span id="st-left">AeroFiles ready</span>
+    <span id="st-progress" hidden></span>
+    <span id="st-right"></span>
+  </footer>
+</div>
+
+<div id="ctxmenu" hidden></div>
+<div id="modal-back" hidden>
+  <div id="modal" class="glass">
+    <div id="modal-title"></div>
+    <input id="modal-input" spellcheck="false">
+    <div id="modal-note"></div>
+    <div id="modal-btns">
+      <button id="modal-cancel" class="btn ghost">Cancel</button>
+      <button id="modal-ok" class="btn accent">OK</button>
+    </div>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script type="module" src="js/app.js?v=2"></script>
+</body>
+</html>
