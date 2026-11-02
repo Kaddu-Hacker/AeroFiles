@@ -39,8 +39,9 @@ jobs:
           cargo test --manifest-path src-tauri/Cargo.toml *> test.log
           $code = $LASTEXITCODE
           if ($code -ne 0) {
-            Get-Content test.log | Select-String -Pattern "panicked at|assertion|error\[E|^error|failures:" |
+            Get-Content test.log | Select-String -Pattern "panicked at|assertion|error\[E|^error|failures:|Caused by" |
               ForEach-Object { "::error::$($_.Line)" }
+            Get-Content test.log -Tail 30 | ForEach-Object { "::error::TAIL> $_" }
           }
           Get-Content test.log -Tail 40
           exit $code
