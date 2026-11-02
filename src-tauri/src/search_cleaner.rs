@@ -123,10 +123,9 @@ pub struct InstalledApp {
     pub key: String,
 }
 
-fn read_uninstall_root(hive: winreg::RegKey, out: &mut Vec<InstalledApp>, root_desc: &str) {
+fn read_uninstall_root(hive: &winreg::RegKey, sub: &str, out: &mut Vec<InstalledApp>, root_desc: &str) {
     use winreg::enums::*;
-    let Ok(uninst) = hive.open_subkey_with_flags(
-        r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", KEY_READ) else { return };
+    let Ok(uninst) = hive.open_subkey_with_flags(sub, KEY_READ) else { return };
     for key in uninst.enum_keys().flatten() {
         let Ok(k) = uninst.open_subkey_with_flags(&key, KEY_READ) else { continue };
         let name: String = k.get_value("DisplayName").unwrap_or_default();
@@ -147,16 +146,15 @@ fn read_uninstall_root(hive: winreg::RegKey, out: &mut Vec<InstalledApp>, root_d
 
 #[tauri::command]
 pub fn list_installed() -> Vec<InstalledApp> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    const UNINSTALL: &str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+    const UNINSTALL_WOW: &str = r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
     let mut out = Vec::new();
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    read_uninstall_root(hklm.open_subkey("SOFTWARE").unwrap_or(hklm), &mut out, "HKLM");
-    if let Ok(wow) = hklm.open_subkey(r"SOFTWARE\WOW6432Node") {
-        read_uninstall_root(wow, &mut out, "HKLM\\WOW6432Node");
-    }
-    read_uninstall_root(hkcu.open_subkey("SOFTWARE").unwrap_or(hkcu), &mut out, "HKCU");
+    let hklm = RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+    let hkcu = RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
+    read_uninstall_root(&hklm, UNINSTALL, &mut out, "HKLM");
+    read_uninstall_root(&hklm, UNINSTALL_WOW, &mut out, "HKLM\\WOW6432Node");
+    read_uninstall_root(&hkcu, UNINSTALL, &mut out, "HKCU");
     out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     out
 }
@@ -266,7 +264,7 @@ pub fn find_orphans() -> Vec<Orphan> {
             if name.len() < 3 { continue; }
             let known = ["microsoft", "google", "programs", "temp", "packages", "publisher cache",
                 "cache", "d3dscache", "connectedDevicesPlatform", "comms", "crypto", "placeholder"];
-            if known.iter().any(|k| name.contains(k)) { continue; }
+            if known.iter().any(|k| name.contains(*k)) { continue; }
             // an app whose name/location mentions this folder name is NOT an orphan
             if hay.contains(name.as_str()) { continue; }
             out.push(Orphan {
