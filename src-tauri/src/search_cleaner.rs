@@ -292,6 +292,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("aero-test-sf-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         mk(&root, "report.pdf", b"12345678");
+        mk(&root, "wide.PDF", b"1234567890");
         mk(&root, "tiny.PDF", b"12");
         mk(&root, "notes.txt", b"abcdefgh");
         mk(&root, "deep/inner/data.csv", b"xyz");
@@ -309,9 +310,10 @@ mod tests {
         let r = search_files(f);
         let names: Vec<&str> = r.results.iter().map(|h| h.name.as_str()).collect();
         assert!(names.contains(&"report.pdf"));
-        assert!(names.contains(&"tiny.PDF"));   // extension match is case-insensitive
-        assert!(!names.contains(&"notes.txt")); // ext filter
-        assert!(!names.contains(&"data.csv"));  // 3 bytes < min_size
+        assert!(names.contains(&"wide.PDF"));    // extension match is case-insensitive
+        assert!(!names.contains(&"tiny.PDF"));   // ext matches but 2 bytes < min_size
+        assert!(!names.contains(&"notes.txt"));  // ext filter
+        assert!(!names.contains(&"data.csv"));   // 3 bytes < min_size
         assert!(!r.results.iter().any(|h| h.is_dir)); // kind=files
         fs::remove_dir_all(&root).unwrap();
     }
