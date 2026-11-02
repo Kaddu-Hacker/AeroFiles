@@ -36,7 +36,7 @@ jobs:
       - name: Run tests
         shell: pwsh
         run: |
-          cargo test --manifest-path src-tauri/Cargo.toml -vv *> test.log
+          cargo test --release --manifest-path src-tauri/Cargo.toml -vv *> test.log
           $code = $LASTEXITCODE
           if ($code -ne 0) {
             $m = Select-String -Path test.log -Pattern "error: failed to run custom build command|panicked at|assertion failed" -Context 0,45 | Select-Object -First 3
