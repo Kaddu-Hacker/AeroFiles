@@ -27,19 +27,23 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Run tests
-        shell: pwsh
-        run: |
-          cargo test --manifest-path src-tauri/Cargo.toml *> test.log
-          $code = $LASTEXITCODE
-          Get-Content test.log -Tail 40
-          exit $code
-
       - name: Generate app icon
         run: python scripts/make_icon.py
 
       - name: Generate platform icons
         run: npx tauri icon app-icon.png
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          cargo test --manifest-path src-tauri/Cargo.toml *> test.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            Get-Content test.log | Select-String -Pattern "panicked at|assertion|error\[E|^error|failures:" |
+              ForEach-Object { "::error::$($_.Line)" }
+          }
+          Get-Content test.log -Tail 40
+          exit $code
 
       - name: Build (release)
         shell: pwsh
