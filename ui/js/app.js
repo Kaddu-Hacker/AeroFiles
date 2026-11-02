@@ -1,5 +1,5 @@
 /* Prism → AeroFiles — app shell: theme, router, titlebar, shared components */
-import { ipc } from "./ipc.js?v=2";
+import { ipc } from "./ipc.js";
 import { initExplorer } from "./explorer.js";
 import { initSearch, initCleaner, initSettings } from "./panels.js";
 

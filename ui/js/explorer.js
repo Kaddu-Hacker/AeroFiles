@@ -14,9 +14,9 @@ const ICONS = [
 const IMG_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico", ".avif"]);
 const iconFor = (e) => e.drive ? "💽" : e.is_dir ? "📁" : (ICONS.find(([x]) => e.ext === x) || [null, "📄"])[1];
 
-let tab, sortBy = store.get("sortBy", "name"), sortDir = store.get("sortDir", 1);
-let viewMode = store.get("view", "list"), showHidden = store.get("hidden", false);
-let clipboard = null, searchState = null, shiftAnchor = null, favs = store.get("favs", []);
+let tab, sortBy = "name", sortDir = 1;
+let viewMode = "list", showHidden = false;
+let clipboard = null, searchState = null, shiftAnchor = null, favs = [];
 
 export function initExplorer() {
   const root = $("view-explorer");
@@ -58,6 +58,10 @@ export function initExplorer() {
     </aside>
   </div>`;
 
+  // hydrate persisted prefs here (never at module top level — app.js cycle/TDZ)
+  sortBy = store.get("sortBy", "name"); sortDir = store.get("sortDir", 1);
+  viewMode = store.get("view", "list"); showHidden = store.get("hidden", false);
+  favs = store.get("favs", []);
   tab = { path: store.get("last", "COMPUTER"), history: [], hIdx: -1, entries: [], sel: new Set() };
   wireToolbar();
   wireList();
@@ -240,8 +244,8 @@ function renderSide() {
   })).catch(() => {});
 }
 
-let recents = store.get("recents", []);
-function pushRecent(p) { recents = [p, ...recents.filter(x => x !== p)].slice(0, 10); store.set("recents", recents); }
+let recents = [];
+function pushRecent(p) { if (!recents.length) recents = store.get("recents", []); recents = [p, ...recents.filter(x => x !== p)].slice(0, 10); store.set("recents", recents); }
 
 function renderStatus() {
   const shown = searchState ? searchState.results.length : sorted().length;

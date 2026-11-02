@@ -16,6 +16,16 @@ pub struct Entry {
     pub mtime: u64,
     pub ext: String,
     pub hidden: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub drive: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub free: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dtype: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -58,11 +68,35 @@ fn entry_of(p: &Path) -> Option<Entry> {
             .map(|d| d.as_secs())
             .unwrap_or(0),
         hidden,
+        drive: None,
+        label: None,
+        free: None,
+        total: None,
+        dtype: None,
     })
 }
 
 #[tauri::command]
 pub fn list_dir(path: String) -> Result<Vec<Entry>, String> {
+    // "COMPUTER" is the virtual This PC root — render drives as entries
+    if path.trim().eq_ignore_ascii_case("COMPUTER") {
+        return Ok(drives()
+            .into_iter()
+            .map(|d| Entry {
+                name: d.path.clone(),
+                is_dir: true,
+                size: 0,
+                mtime: 0,
+                ext: String::new(),
+                hidden: false,
+                drive: Some(true),
+                label: Some(d.label.clone()),
+                free: Some(d.free),
+                total: Some(d.total),
+                dtype: Some(d.kind.clone()),
+            })
+            .collect());
+    }
     let root = PathBuf::from(&path);
     if !root.is_dir() {
         return Err("path is not a directory".into());
